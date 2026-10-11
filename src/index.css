@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-manrope: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-newsreader: 'Newsreader', Georgia, serif;
+    --font-garamond: 'EB Garamond', Garamond, serif;
+    --font-jakarta: 'Plus Jakarta Sans', sans-serif;
+    --font-grotesk: 'Space Grotesk', monospace, sans-serif;
+    --font-amiri: 'Amiri', 'Traditional Arabic', serif;
+  }
+
+  html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* Custom font utilities */
+.font-arabic {
+  font-family: var(--font-amiri), serif;
+}
+
+.font-manrope {
+  font-family: var(--font-manrope);
+}
+
+.font-newsreader {
+  font-family: var(--font-newsreader);
+}
+
+.font-garamond {
+  font-family: var(--font-garamond);
+}
+
+.font-jakarta {
+  font-family: var(--font-jakarta);
+}
+
+.font-grotesk {
+  font-family: var(--font-grotesk);
+}
+
+/* Hide scrollbars cleanly */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Material symbols */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}

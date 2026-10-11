@@ -1,0 +1,53 @@
+import { DuaItem } from '../types';
+
+export const VERIFIED_DUAS: DuaItem[] = [
+  {
+    id: 'dua-1',
+    category: 'Günün Duası & Kur\'an',
+    title: 'Rabbenâ Âtinâ (Dünya ve Âhiret İyiliği)',
+    arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+    transliteration: 'Rabbenâ âtinâ fid-dünyâ haseneten ve fil-âhirati haseneten ve kınâ \'azâben-nâr.',
+    meaning: 'Ey Rabbimiz! Bize dünyada da iyilik ve güzellik ver, âhirette de iyilik ve güzellik ver ve bizi cehennem azabından koru.',
+    source: 'Bakara Sûresi, 201. Âyet-i Kerîme',
+    virtue: 'Peygamber Efendimiz\'in (s.a.v.) tavaf esnasında ve her namazın ardında en çok okuduğu duadır.',
+  },
+  {
+    id: 'dua-2',
+    category: 'Sabah & Akşam',
+    title: 'Seyyidü\'l-İstiğfar (Tevbelerin Efendisi)',
+    arabic: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ لَكَ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ',
+    transliteration: 'Allâhümme ente Rabbî lâ ilâhe illâ ente halaktenî ve ene \'abdüke ve ene \'alâ \'ahdike ve va\'dike mesteta\'tü...',
+    meaning: 'Allah\'ım! Sen benim Rabbimsin; Senden başka ilâh yoktur. Beni Sen yarattın ve ben Senin kulunum...',
+    source: 'Buhârî, De\'avât, 2; Tirmizî, De\'avât, 15',
+    virtue: 'Kim bunu sabah içtenlikle okur da o gün vefat ederse cennet ehlinden olur.',
+  },
+  {
+    id: 'dua-3',
+    category: 'Haremeyn & Tavaf',
+    title: 'Rükn-i Yemânî ile Hacerü\'l-Esved Arası Dua',
+    arabic: 'رَبَّنَا اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ',
+    transliteration: 'Rabbiğfir verham ve ente hayrur-râhimîn.',
+    meaning: 'Rabbim! Bağışla, merhamet et; Sen merhametlilerin en hayırlısısın.',
+    source: 'Mü\'minûn Sûresi, 118; İbn Mâce, Menâsik, 32',
+    virtue: 'Kâbe-i Muazzama etrafında tavaf esnasında okunan faziletli yakarış.',
+  },
+  {
+    id: 'dua-4',
+    category: 'İftar & Oruç',
+    title: 'İftar Vakti Duası',
+    arabic: 'اللَّهُمَّ لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ',
+    transliteration: 'Allâhümme leke sumtü ve bike âmentü ve \'aleyke tevekkeltü ve \'alâ rızkıke eftartü.',
+    meaning: 'Allah\'ım! Senin rızan için oruç tuttum, Sana iman ettim, Sana tevekkül ettim ve Senin rızkınla orucumu açtım.',
+    source: 'Ebû Dâvûd, Sıyâm, 22',
+  },
+  {
+    id: 'dua-5',
+    category: 'Sıkıntı & Ferahlık',
+    title: 'Hz. Yûnus\'un (a.s.) Duası',
+    arabic: 'لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ',
+    transliteration: 'Lâ ilâhe illâ ente sübhâneke innî küntü minez-zâlimîn.',
+    meaning: 'Senden başka hiçbir ilâh yoktur. Seni tenzih ederim. Gerçekten ben haksızlık edenlerden oldum.',
+    source: 'Enbiyâ Sûresi, 87; Tirmizî, De\'avât, 82',
+    virtue: 'Darlık ve musibet anında okuyanın duası icabet olunur.',
+  },
+];

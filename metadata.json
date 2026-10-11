@@ -1,0 +1,6 @@
+{
+  "name": "Es-Selâmu Aleyküm - İslami Asistan & Vakitler",
+  "description": "Namaz vakitleri, kadran ve telemetri, Mekke ve Medine Haremeyn modları, Kur'an-ı Kerim, kıble pusulası, dijital tesbih ve yapay zekâ asistanı.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
