@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { isValidAyah, lookupAyah } from '../data/quran';
 
 export interface AssistantCitation {
@@ -68,31 +67,24 @@ export async function askIslamicAssistant(question: string, madhab = 'Hanefi'): 
     return enrichCitations(guarded);
   }
 
-  // 2. Canlı Gemini API Denemesi (@google/genai)
-  const apiKey =
-    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
-    (import.meta as unknown as { env?: { VITE_GEMINI_API_KEY?: string } }).env?.VITE_GEMINI_API_KEY;
+  // 2. Canlı Gemini API Denemesi (Server-Side Proxy: /api/assistant)
+  try {
+    const response = await fetch('/api/assistant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question: trimmed, madhab }),
+    });
 
-  if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `Kullanıcı Mezhebi: ${madhab}\nKullanıcı Sorusu: ${trimmed}\n\nLütfen sistem talimatına uygun şekilde yanıt ver.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-        },
-      });
-
-      const text = response.text || '';
-      return enrichCitations(parseResponse(text));
-    } catch {
-      // Fallback
-      return enrichCitations(getKnowledgeBaseFallback(trimmed, madhab));
+    if (response.ok) {
+      const data = await response.json();
+      if (data && typeof data.text === 'string' && data.text.trim()) {
+        return enrichCitations(parseResponse(data.text));
+      }
     }
+  } catch {
+    // Backend offline veya hata durumunda yerel bilgi tabanına fallback
   }
 
   // 3. Çevrimdışı Güvenilir Bilgi Tabanı

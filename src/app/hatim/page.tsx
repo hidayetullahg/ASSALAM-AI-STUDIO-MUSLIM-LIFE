@@ -15,6 +15,7 @@ import {
 import { HatimDuasiModal } from '../../components/modals/HatimDuasiModal';
 import { HatimProgressChart } from '../../components/views/HatimProgressChart';
 import { HatimAdabiCard } from '../../components/views/HatimAdabiCard';
+import { HatimCalendarView } from '../../components/views/HatimCalendarView';
 
 export interface JuzAssignment {
   juzNumber: number;
@@ -24,6 +25,16 @@ export interface JuzAssignment {
   notes?: string;
 }
 
+// Hızlı Manevi Niyet ve Tefekkür Şablonları
+export const PRAYER_INTENTION_PRESETS = [
+  { label: '🤲 Şifa Niyetiyle', text: '🤲 Şifa Niyetiyle: ' },
+  { label: '🕊️ Ruhuna Hediye', text: '🕊️ Merhumun Ruhuna Hediye: ' },
+  { label: '🌿 Tevbe & İstiğfar', text: '🌿 Tevbe, af ve kalbi arınma niyetiyle. ' },
+  { label: '🎓 İlim & Başarı', text: '🎓 İlim, zihin açıklığı ve hayırlı muvaffakiyet için. ' },
+  { label: '👨‍👩‍👧‍👦 Aile Huzuru', text: '👨‍👩‍👧‍👦 Aile huzuru, birlik ve bereket niyetiyle. ' },
+  { label: '✨ Manevi Tefekkür', text: '✨ Tefekkür Notu: ' },
+];
+
 export default function HatimPage() {
   const [hatimTitle, setHatimTitle] = useState('Aile & Akraba Hatm-i Şerîfi');
   const [targetDateStr, setTargetDateStr] = useState('2026-11-15'); // ISO format for countdown
@@ -31,6 +42,14 @@ export default function HatimPage() {
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [editingJuz, setEditingJuz] = useState<number | null>(null);
   const [assigneeName, setAssigneeName] = useState('');
+
+  // Kişisel Manevi Not & Dua Niyeti Düzenleme Durumu
+  const [editingNoteJuz, setEditingNoteJuz] = useState<number | null>(null);
+  const [juzNoteText, setJuzNoteText] = useState('');
+  const [assigneeNoteText, setAssigneeNoteText] = useState('');
+
+  // Görünüm Sekmesi (Liste vs Haftalık Takvim)
+  const [activeViewTab, setActiveViewTab] = useState<'list' | 'calendar'>('list');
 
   // Hatim Duası Modalı Durumu
   const [isHatimDuasiOpen, setIsHatimDuasiOpen] = useState(false);
@@ -100,12 +119,17 @@ export default function HatimPage() {
     // Varsayılan 30 Cüz oluşturucu
     const initialList: JuzAssignment[] = [];
     const sampleNames = ['Annem', 'Babam', 'Ahmet (Ağabey)', 'Zeynep (Abla)', 'Kendim'];
+    const sampleNotes: Record<number, string> = {
+      1: '🤲 Aile büyüklerimizin şifası ve merhum ecdadımızın ruhuna hediye niyetiyledir.',
+      2: '📖 Fatiha ve Bakara başındaki hidayet müjdeleri üzerine tefekkürle tamamlandı.',
+    };
     for (let i = 1; i <= 30; i++) {
       initialList.push({
         juzNumber: i,
         assignedTo: i <= 5 ? sampleNames[i - 1] : '',
         isCompleted: i <= 2,
         completedAt: i <= 2 ? '2 Şubat 2026' : undefined,
+        notes: sampleNotes[i],
       });
     }
     return initialList;
@@ -131,6 +155,28 @@ export default function HatimPage() {
   const assignedCount = juzList.filter((j) => j.assignedTo.trim() !== '').length;
   const remainingCount = 30 - completedCount;
   const progressPercent = Math.round((completedCount / 30) * 100);
+
+  // Hızlı Görünüm (Quick View: Yalnızca Okunmamış Cüzler) Durumu
+  const [quickViewUnreadOnly, setQuickViewUnreadOnly] = useState(false);
+  const [quickViewSubFilter, setQuickViewSubFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
+
+  // Kalan okunmamış cüzlerin listeleri
+  const unreadJuzList = React.useMemo(() => juzList.filter((j) => !j.isCompleted), [juzList]);
+  const unreadAssignedList = React.useMemo(
+    () => unreadJuzList.filter((j) => j.assignedTo.trim().length > 0),
+    [unreadJuzList]
+  );
+  const unreadUnassignedList = React.useMemo(
+    () => unreadJuzList.filter((j) => j.assignedTo.trim().length === 0),
+    [unreadJuzList]
+  );
+
+  const displayedJuzList = React.useMemo(() => {
+    if (!quickViewUnreadOnly) return juzList;
+    if (quickViewSubFilter === 'assigned') return unreadAssignedList;
+    if (quickViewSubFilter === 'unassigned') return unreadUnassignedList;
+    return unreadJuzList;
+  }, [juzList, quickViewUnreadOnly, quickViewSubFilter, unreadJuzList, unreadAssignedList, unreadUnassignedList]);
 
   // Hatim Durum Raporu & Analiz İstatistikleri (Gereksinim 9)
   const [copiedReportToast, setCopiedReportToast] = useState(false);
@@ -268,18 +314,89 @@ export default function HatimPage() {
     );
   };
 
+  // Kişisel Manevi Not / Dua Niyeti Yönetim Metotları
+  const handleToggleNoteEditor = (juz: JuzAssignment) => {
+    sound.playClick();
+    if (editingNoteJuz === juz.juzNumber) {
+      setEditingNoteJuz(null);
+      setJuzNoteText('');
+    } else {
+      setEditingNoteJuz(juz.juzNumber);
+      setJuzNoteText(juz.notes || '');
+      // Aynı anda atama formu açıksa kapat
+      if (editingJuz === juz.juzNumber) {
+        setEditingJuz(null);
+      }
+    }
+  };
+
+  const handleSaveNote = (juzNumber: number) => {
+    sound.playChime();
+    const cleanNote = juzNoteText.trim();
+    setJuzList((prev) =>
+      prev.map((item) => {
+        if (item.juzNumber === juzNumber) {
+          return {
+            ...item,
+            notes: cleanNote ? cleanNote : undefined,
+          };
+        }
+        return item;
+      })
+    );
+    setEditingNoteJuz(null);
+    setJuzNoteText('');
+  };
+
+  const handleClearNote = (juzNumber: number) => {
+    sound.playClick();
+    setJuzList((prev) =>
+      prev.map((item) => {
+        if (item.juzNumber === juzNumber) {
+          return {
+            ...item,
+            notes: undefined,
+          };
+        }
+        return item;
+      })
+    );
+    setJuzNoteText('');
+    setEditingNoteJuz(null);
+  };
+
+  const appendNotePreset = (presetText: string) => {
+    sound.playClick();
+    setJuzNoteText((prev) => {
+      if (!prev.trim()) return presetText;
+      if (prev.includes(presetText)) return prev;
+      return `${prev}\n${presetText}`;
+    });
+  };
+
+  const appendAssigneeNotePreset = (presetText: string) => {
+    sound.playClick();
+    setAssigneeNoteText((prev) => {
+      if (!prev.trim()) return presetText;
+      if (prev.includes(presetText)) return prev;
+      return `${prev}\n${presetText}`;
+    });
+  };
+
   // Cüz paylaşımı / atama ve bildirim tetikleme
   const handleAssign = (juzNumber: number) => {
     sound.playClick();
     if (!assigneeName.trim()) return;
 
     const trimmedName = assigneeName.trim();
+    const cleanNote = assigneeNoteText.trim();
     setJuzList((prev) =>
       prev.map((item) => {
         if (item.juzNumber === juzNumber) {
           return {
             ...item,
             assignedTo: trimmedName,
+            notes: cleanNote ? cleanNote : item.notes,
           };
         }
         return item;
@@ -296,6 +413,7 @@ export default function HatimPage() {
 
     setEditingJuz(null);
     setAssigneeName('');
+    setAssigneeNoteText('');
   };
 
   const handleClearAssign = (juzNumber: number) => {
@@ -325,6 +443,8 @@ export default function HatimPage() {
     );
 
     setEditingJuz(null);
+    setAssigneeName('');
+    setAssigneeNoteText('');
   };
 
   // Bildirim İzni İsteme
@@ -385,6 +505,62 @@ export default function HatimPage() {
     setSelectedAssigneeReminder(null);
   };
 
+  // Bildirim ve Hatim İlerleme Günlüğünü CSV Olarak Dışa Aktarma
+  const handleExportLogsToCSV = () => {
+    sound.playClick();
+
+    const escapeCsv = (val: string | number | undefined | null) => {
+      if (val === undefined || val === null) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const typeLabels: Record<string, string> = {
+      completed: 'Cüz Tamamlandı',
+      assigned: 'Cüz Sahiplenildi',
+      reminder: 'Hatırlatıcı / Uyarı',
+      deadline: 'Vade / Bitiş Alarmı',
+      finished: 'Hatim Tamamlandı',
+    };
+
+    let csvContent = '\uFEFF'; // Excel ve Sheets için UTF-8 BOM
+
+    if (notificationLogs.length > 0) {
+      const headers = ['Zaman Damgası', 'Bildirim Başlığı', 'Açıklama / Mesaj', 'İşlem Türü', 'İlgili Kişi', 'Cüz Numarası'];
+      const rows = notificationLogs.map((log) => [
+        escapeCsv(log.timestamp),
+        escapeCsv(log.title),
+        escapeCsv(log.body),
+        escapeCsv(typeLabels[log.type] || log.type),
+        escapeCsv(log.assignee || '-'),
+        escapeCsv(log.juzNumber ? `${log.juzNumber}. Cüz` : '-'),
+      ]);
+      csvContent += [headers.map((h) => `"${h}"`).join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    } else {
+      // Bildirim kaydı henüz yoksa 30 cüzün güncel ilerleme tablosunu aktar
+      const headers = ['Cüz Numarası', 'Okuma Durumu', 'Okuyan Kişi', 'Tamamlanma Tarihi', 'Manevi Tefekkür & Dua Niyeti'];
+      const rows = juzList.map((j) => [
+        escapeCsv(`${j.juzNumber}. Cüz`),
+        escapeCsv(j.isCompleted ? 'Okundu' : j.assignedTo.trim() ? 'Okunuyor' : 'Boşta'),
+        escapeCsv(j.assignedTo || '-'),
+        escapeCsv(j.completedAt || '-'),
+        escapeCsv(j.notes || '-'),
+      ]);
+      csvContent += [headers.map((h) => `"${h}"`).join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeDate = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.setAttribute('download', `hatim-ilerleme-ve-bildirim-gunlugu-${safeDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Tüm listeyi WhatsApp veya SMS ile paylaşma
   const handleShareHatim = () => {
     sound.playClick();
@@ -392,7 +568,8 @@ export default function HatimPage() {
     text += `*Cüz Dağılımı ve Durumu:*\n`;
     juzList.forEach((j) => {
       const statusIcon = j.isCompleted ? '✅ Okundu' : j.assignedTo ? `⏳ ${j.assignedTo}` : '⚪ Boşta (Alınabilir)';
-      text += `${j.juzNumber}. Cüz: ${statusIcon}\n`;
+      const noteStr = j.notes?.trim() ? ` [🤲 ${j.notes.trim()}]` : '';
+      text += `${j.juzNumber}. Cüz: ${statusIcon}${noteStr}\n`;
     });
     text += `\n_Es-Selâmu Aleyküm Hatim Paylaşım Ağı_`;
 
@@ -797,18 +974,29 @@ export default function HatimPage() {
                 <span className="material-symbols-outlined text-[14px]">history</span>
                 Son Bildirimler ve Alarm Günlüğü
               </span>
-              {notificationLogs.length > 0 && (
+              <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => {
-                    sound.playClick();
-                    setNotificationLogs([]);
-                    saveNotificationLogs([]);
-                  }}
-                  className="text-[10px] text-slate-400 hover:text-red-600 transition-colors"
+                  onClick={handleExportLogsToCSV}
+                  className="px-2.5 py-1 rounded-lg bg-[#FAF7F0] hover:bg-[#F4ECE1] text-[#0F5C4A] hover:text-[#0A3D33] border border-[#0F5C4A]/25 font-manrope text-[11px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs"
+                  title="Bildirim ve hatim ilerleme geçmişini CSV dosyası olarak indir"
                 >
-                  Temizle
+                  <span className="material-symbols-outlined text-[15px] text-[#0F5C4A]">file_download</span>
+                  <span>Export Logs</span>
                 </button>
-              )}
+                {notificationLogs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setNotificationLogs([]);
+                      saveNotificationLogs([]);
+                    }}
+                    className="text-[10px] text-slate-400 hover:text-red-600 transition-colors px-1"
+                    title="Geçmişi Temizle"
+                  >
+                    Temizle
+                  </button>
+                )}
+              </div>
             </div>
 
             {notificationLogs.length === 0 ? (
@@ -973,14 +1161,32 @@ export default function HatimPage() {
             <span className="text-[#495450] block text-[10px]">Okunan</span>
             <span className="font-bold text-[#0F5C4A] text-[14px]">{completedCount} Cüz</span>
           </div>
-          <div className="bg-[#FAF7F0] p-2 rounded-lg border border-[#E4E7E3]">
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveViewTab('list');
+              setQuickViewUnreadOnly(true);
+              setQuickViewSubFilter('assigned');
+            }}
+            className="bg-[#FAF7F0] hover:bg-amber-50 p-2 rounded-lg border border-[#E4E7E3] hover:border-amber-300 transition-all text-center cursor-pointer active:scale-95"
+            title="Okunması beklenen sahipli cüzleri hızlı gör"
+          >
             <span className="text-[#495450] block text-[10px]">Sahiplenilen</span>
             <span className="font-bold text-[#9C7A1E] text-[14px]">{assignedCount} Cüz</span>
-          </div>
-          <div className="bg-[#FAF7F0] p-2 rounded-lg border border-[#E4E7E3]">
+          </button>
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveViewTab('list');
+              setQuickViewUnreadOnly(true);
+              setQuickViewSubFilter('unassigned');
+            }}
+            className="bg-[#FAF7F0] hover:bg-red-50 p-2 rounded-lg border border-[#E4E7E3] hover:border-red-300 transition-all text-center cursor-pointer active:scale-95"
+            title="Boşta kalan cüzleri hızlı gör"
+          >
             <span className="text-[#495450] block text-[10px]">Açıkta Kalan</span>
             <span className="font-bold text-[#1E2322] text-[14px]">{30 - assignedCount} Cüz</span>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -992,19 +1198,226 @@ export default function HatimPage() {
         juzList={juzList}
       />
 
-      {/* 4. CÜZ LİSTESİ VE DAĞILIM GRİD'İ */}
-      <section className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-newsreader text-[16px] font-bold text-[#1E2322]">
-            30 Cüz Dağılım Listesi
-          </h2>
-          <span className="font-manrope text-[11px] text-[#495450]">
-            Tıklayarak durumu değiştirin
-          </span>
-        </div>
+      {/* 4. GÖRÜNÜM SEÇİCİ SEKMELER (LİSTE vs HAFTALIK TAKVİM PLANI) */}
+      <div className="flex items-center gap-1.5 p-1 bg-[#FAF7F0] rounded-2xl border border-[#E4E7E3] shadow-xs">
+        <button
+          onClick={() => {
+            sound.playClick();
+            setActiveViewTab('list');
+          }}
+          className={`flex-1 py-2 px-3 rounded-xl font-manrope text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all ${
+            activeViewTab === 'list'
+              ? 'bg-[#0F5C4A] text-white shadow-xs'
+              : 'text-[#495450] hover:text-[#1E2322] hover:bg-black/5'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[17px]">format_list_bulleted</span>
+          <span>Cüz Dağılım Listesi</span>
+        </button>
 
-        <div className="space-y-2">
-          {juzList.map((item) => {
+        <button
+          onClick={() => {
+            sound.playClick();
+            setActiveViewTab('calendar');
+          }}
+          className={`flex-1 py-2 px-3 rounded-xl font-manrope text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all ${
+            activeViewTab === 'calendar'
+              ? 'bg-[#0F5C4A] text-white shadow-xs'
+              : 'text-[#495450] hover:text-[#1E2322] hover:bg-black/5'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[17px]">calendar_month</span>
+          <span>Haftalık Takvim Planı</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-[#fed488] text-[#7A5E12] text-[9px] font-black uppercase">
+            Hedef Vade
+          </span>
+        </button>
+      </div>
+
+      {/* SEÇİLEN GÖRÜNÜM: HAFTALIK TAKVİM VEYA LİSTE */}
+      {activeViewTab === 'calendar' ? (
+        <HatimCalendarView
+          juzList={juzList}
+          targetDateStr={targetDateStr}
+          targetLabel={targetLabel}
+          timeLeft={timeLeft}
+          onToggleComplete={(juzNumber) => toggleComplete(juzNumber)}
+          onOpenNoteEditor={(juz) => handleToggleNoteEditor(juz)}
+          onEditTargetDate={() => {
+            setIsEditingTarget(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      ) : (
+        /* 4. CÜZ LİSTESİ VE DAĞILIM GRİD'İ */
+        <section className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-newsreader text-[17px] font-bold text-[#1E2322]">
+                  {quickViewUnreadOnly ? '⚡ Hızlı Özet: Okunmamış Cüzler' : '30 Cüz Dağılım Listesi'}
+                </h2>
+                {quickViewUnreadOnly && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-[#9C7A1E] text-[10px] font-bold font-manrope uppercase">
+                    {displayedJuzList.length} Cüz
+                  </span>
+                )}
+              </div>
+              <p className="font-manrope text-[11px] text-[#495450]">
+                {quickViewUnreadOnly
+                  ? 'Kalan cüzlerin hızlı tespiti ve pratik okunma takibi'
+                  : 'Tıklayarak durumu değiştirin veya kişi atayın'}
+              </p>
+            </div>
+
+            {/* Quick View Toggle Düğmesi */}
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setQuickViewUnreadOnly(!quickViewUnreadOnly);
+                  setQuickViewSubFilter('all');
+                }}
+                className={`px-3 py-1.5 rounded-xl font-manrope text-[11.5px] font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 ${
+                  quickViewUnreadOnly
+                    ? 'bg-[#9C7A1E] text-white ring-2 ring-[#9C7A1E]/30'
+                    : 'bg-white text-[#1E2322] border border-[#E4E7E3] hover:bg-[#FAF7F0]'
+                }`}
+                title={quickViewUnreadOnly ? 'Tüm 30 cüz listesine geri dön' : 'Yalnızca okunmamış cüzleri özetle'}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {quickViewUnreadOnly ? 'visibility_off' : 'flash_on'}
+                </span>
+                <span>{quickViewUnreadOnly ? 'Tüm 30 Cüzü Göster' : '⚡ Hızlı Görünüm (Kalanlar)'}</span>
+                {!quickViewUnreadOnly && remainingCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-[#9C7A1E] text-[10px] font-bold">
+                    {remainingCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick View Aktifken Bilgilendirme ve Alt Filtre Kartı */}
+          {quickViewUnreadOnly && (
+            <div className="p-3.5 rounded-2xl bg-[#FAF7F0] border border-[#9C7A1E]/30 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[17px] text-[#9C7A1E]">pending_actions</span>
+                  <span className="font-manrope text-[12px] font-bold text-[#1E2322]">
+                    Kalan Okunmamış Cüzler Özeti
+                  </span>
+                </div>
+                <span className="font-manrope text-[11px] text-[#495450] font-semibold">
+                  {remainingCount} / 30 Cüz Bekliyor (%{100 - progressPercent})
+                </span>
+              </div>
+
+              {/* Alt Filtre Butonları */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setQuickViewSubFilter('all');
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-manrope font-semibold transition-all shrink-0 ${
+                    quickViewSubFilter === 'all'
+                      ? 'bg-[#0F5C4A] text-white shadow-xs'
+                      : 'bg-white text-[#495450] border border-[#E4E7E3] hover:bg-slate-50'
+                  }`}
+                >
+                  Tüm Kalanlar ({unreadJuzList.length})
+                </button>
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setQuickViewSubFilter('assigned');
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-manrope font-semibold transition-all shrink-0 ${
+                    quickViewSubFilter === 'assigned'
+                      ? 'bg-[#9C7A1E] text-white shadow-xs'
+                      : 'bg-white text-[#495450] border border-[#E4E7E3] hover:bg-slate-50'
+                  }`}
+                >
+                  Kişide / Okunuyor ({unreadAssignedList.length})
+                </button>
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setQuickViewSubFilter('unassigned');
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-manrope font-semibold transition-all shrink-0 ${
+                    quickViewSubFilter === 'unassigned'
+                      ? 'bg-red-600 text-white shadow-xs'
+                      : 'bg-white text-[#495450] border border-[#E4E7E3] hover:bg-slate-50'
+                  }`}
+                >
+                  Boşta ({unreadUnassignedList.length})
+                </button>
+              </div>
+
+              {/* Hızlı Cüz Seçim Hapları */}
+              {unreadJuzList.length > 0 && (
+                <div className="pt-2 border-t border-[#E4E7E3]/60">
+                  <span className="text-[10.5px] font-manrope text-[#495450] block mb-1.5 font-medium">
+                    Hızlı Cüz Numaraları (Tıklayarak okundu işaretleyin):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {unreadJuzList.map((uj) => (
+                      <button
+                        key={uj.juzNumber}
+                        onClick={() => toggleComplete(uj.juzNumber)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-manrope font-bold flex items-center gap-1 transition-all active:scale-95 border ${
+                          uj.assignedTo.trim()
+                            ? 'bg-white border-[#9C7A1E]/30 text-[#9C7A1E] hover:bg-amber-50'
+                            : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                        }`}
+                        title={`${uj.juzNumber}. Cüz (${uj.assignedTo || 'Boşta'}) - Tıklayarak tamamla`}
+                      >
+                        <span>{uj.juzNumber}. Cüz</span>
+                        {uj.assignedTo ? (
+                          <span className="text-[9px] font-normal text-slate-500 max-w-[65px] truncate">
+                            ({uj.assignedTo})
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-red-500 font-bold">(Boş)</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {displayedJuzList.length === 0 ? (
+              <div className="p-8 text-center bg-white rounded-2xl border border-[#E4E7E3] space-y-2.5">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#0F5C4A] mx-auto flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[26px]">celebration</span>
+                </div>
+                <h3 className="font-newsreader text-[16px] font-bold text-[#1E2322]">
+                  {remainingCount === 0
+                    ? '🎉 Hatm-i Şerîf Tamamlandı!'
+                    : 'Bu Kriterde Bekleyen Cüz Yok'}
+                </h3>
+                <p className="font-manrope text-[11px] text-[#495450] max-w-xs mx-auto">
+                  {remainingCount === 0
+                    ? '30 cüzün tamamı okunmuştur. Elhamdülillah, Hatim Bağışlama Duasını yapabilirsiniz.'
+                    : 'Seçili filtreye uyan okunmamış cüz bulunmamaktadır.'}
+                </p>
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setQuickViewUnreadOnly(false);
+                  }}
+                  className="px-4 py-2 bg-[#0F5C4A] text-white rounded-xl text-[11px] font-manrope font-bold active:scale-95 transition-all shadow-xs"
+                >
+                  Tüm 30 Cüzü Göster
+                </button>
+              </div>
+            ) : (
+              displayedJuzList.map((item) => {
             const isAssigned = item.assignedTo.trim().length > 0;
             const isEditing = editingJuz === item.juzNumber;
 
@@ -1049,6 +1462,15 @@ export default function HatimPage() {
                         ) : (
                           <span className="px-1.5 py-0.2 bg-slate-100 text-slate-500 rounded text-[9px] font-manrope font-semibold uppercase">
                             Boşta
+                          </span>
+                        )}
+                        {item.notes && item.notes.trim() && (
+                          <span
+                            className="px-1.5 py-0.2 bg-[#FAF7F0] text-[#9C7A1E] border border-[#9C7A1E]/30 rounded text-[9px] font-manrope font-semibold flex items-center gap-0.5"
+                            title="Bu cüz için manevi tefekkür / dua niyeti notu var"
+                          >
+                            <span className="material-symbols-outlined text-[10px]">format_quote</span>
+                            <span>Manevi Not</span>
                           </span>
                         )}
                       </div>
@@ -1102,14 +1524,44 @@ export default function HatimPage() {
                       </button>
                     )}
 
+                    {/* Manevi Not & Dua Niyeti Butonu */}
+                    <button
+                      onClick={() => handleToggleNoteEditor(item)}
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
+                        editingNoteJuz === item.juzNumber
+                          ? 'bg-[#9C7A1E] text-white shadow-xs'
+                          : item.notes && item.notes.trim()
+                          ? 'bg-[#FAF7F0] text-[#9C7A1E] border border-[#9C7A1E]/30 shadow-xs'
+                          : 'bg-[#f0f5f2] text-[#495450] hover:text-[#9C7A1E] hover:bg-[#FAF7F0]'
+                      }`}
+                      title={
+                        item.notes && item.notes.trim()
+                          ? 'Manevi Tefekkür & Dua Niyetini Düzenle'
+                          : 'Manevi Not / Dua Niyeti Ekle'
+                      }
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {item.notes && item.notes.trim() ? 'sticky_note_2' : 'edit_note'}
+                      </span>
+                    </button>
+
                     {/* Kişi Atama Düzenle */}
                     <button
                       onClick={() => {
                         sound.playClick();
-                        setEditingJuz(isEditing ? null : item.juzNumber);
+                        const willOpen = !isEditing;
+                        setEditingJuz(willOpen ? item.juzNumber : null);
                         setAssigneeName(item.assignedTo);
+                        setAssigneeNoteText(item.notes || '');
+                        if (willOpen && editingNoteJuz === item.juzNumber) {
+                          setEditingNoteJuz(null);
+                        }
                       }}
-                      className="w-9 h-9 rounded-lg bg-[#f0f5f2] text-[#495450] hover:bg-[#E4E7E3] flex items-center justify-center transition-colors"
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                        isEditing
+                          ? 'bg-[#0F5C4A] text-white shadow-xs'
+                          : 'bg-[#f0f5f2] text-[#495450] hover:bg-[#E4E7E3]'
+                      }`}
                       title="Kişi Ata / Değiştir"
                     >
                       <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -1117,37 +1569,165 @@ export default function HatimPage() {
                   </div>
                 </div>
 
-                {/* Satır İçi Kişi Atama Formu */}
-                {isEditing && (
-                  <div className="mt-3 pt-3 border-t border-[#E4E7E3] flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={assigneeName}
-                      onChange={(e) => setAssigneeName(e.target.value)}
-                      placeholder="Cüzü okuyacak kişinin adı (ör. Fatma Teyze)..."
-                      className="flex-1 px-3 py-1.5 rounded-lg bg-[#f0f5f2] text-[12px] font-manrope outline-none border border-transparent focus:border-[#0F5C4A]"
-                    />
+                {/* Kaydedilmiş Manevi Not / Dua Niyeti Gösterim Kartı */}
+                {item.notes && item.notes.trim() && editingNoteJuz !== item.juzNumber && (
+                  <div className="mt-2.5 px-3 py-2 rounded-lg bg-[#FAF7F0]/90 border border-[#9C7A1E]/20 text-[#1E2322] flex items-start justify-between gap-2 text-[11px] font-manrope transition-all">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <span className="material-symbols-outlined text-[15px] text-[#9C7A1E] shrink-0 mt-0.5">
+                        format_quote
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-[9.5px] font-bold text-[#9C7A1E] uppercase tracking-wider block">
+                          Manevi Tefekkür & Dua Niyeti
+                        </span>
+                        <p className="italic text-[#2C3531] whitespace-pre-line leading-relaxed text-[11px] mt-0.5">
+                          "{item.notes}"
+                        </p>
+                      </div>
+                    </div>
                     <button
-                      onClick={() => handleAssign(item.juzNumber)}
-                      className="px-3 py-1.5 bg-[#0F5C4A] text-white rounded-lg font-manrope text-[11px] font-bold"
+                      onClick={() => handleToggleNoteEditor(item)}
+                      className="text-[#9C7A1E] hover:text-[#6d520e] p-1 shrink-0 rounded transition-colors hover:bg-amber-100/50"
+                      title="Manevi Notu Düzenle"
                     >
-                      Kaydet
+                      <span className="material-symbols-outlined text-[15px]">edit_note</span>
                     </button>
-                    {item.assignedTo && (
+                  </div>
+                )}
+
+                {/* Özel Manevi Not ve Tefekkür Düzenleme Çekmecesi */}
+                {editingNoteJuz === item.juzNumber && (
+                  <div className="mt-3 pt-3 border-t border-[#E4E7E3] space-y-2.5 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[#9C7A1E] font-bold text-[12px] font-manrope">
+                        <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                        <span>{item.juzNumber}. Cüz İçin Manevi Not & Dua Niyeti</span>
+                      </div>
                       <button
-                        onClick={() => handleClearAssign(item.juzNumber)}
-                        className="px-2 py-1.5 bg-red-50 text-red-600 rounded-lg font-manrope text-[11px] font-medium"
+                        onClick={() => setEditingNoteJuz(null)}
+                        className="text-[#495450] hover:text-[#1E2322] p-1 rounded hover:bg-black/5"
+                        title="Kapat"
                       >
-                        Bırak
+                        <span className="material-symbols-outlined text-[15px]">close</span>
                       </button>
-                    )}
+                    </div>
+
+                    {/* Hızlı Manevi Niyet Şablonları */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                      <span className="text-[10px] text-[#495450] font-manrope shrink-0">Hızlı Şablon:</span>
+                      {PRAYER_INTENTION_PRESETS.map((p, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => appendNotePreset(p.text)}
+                          className="px-2 py-0.5 rounded-full bg-[#FAF7F0] hover:bg-amber-100 text-[#9C7A1E] border border-[#9C7A1E]/20 text-[10px] font-manrope font-medium shrink-0 transition-colors active:scale-95"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <textarea
+                      value={juzNoteText}
+                      onChange={(e) => setJuzNoteText(e.target.value)}
+                      placeholder="Bu cüzü okurken kalbinizden geçen dua niyeti, bağışlamak istediğiniz yakınınız veya ayetlerden aldığınız manevi tefekkürler..."
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg bg-white border border-[#E4E7E3] text-[12px] font-manrope leading-relaxed outline-none focus:border-[#9C7A1E] focus:ring-1 focus:ring-[#9C7A1E]/30 resize-none"
+                    />
+
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleSaveNote(item.juzNumber)}
+                          className="px-3.5 py-1.5 bg-[#0F5C4A] hover:bg-[#0A3D33] text-white rounded-lg font-manrope text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">check</span>
+                          <span>Notu Kaydet</span>
+                        </button>
+                        {item.notes && (
+                          <button
+                            onClick={() => handleClearNote(item.juzNumber)}
+                            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-manrope text-[11px] font-medium flex items-center gap-1 active:scale-95 transition-all"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                            <span>Notu Sil</span>
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setEditingNoteJuz(null)}
+                        className="px-2.5 py-1.5 bg-[#f0f5f2] text-[#495450] hover:bg-[#E4E7E3] rounded-lg font-manrope text-[11px] font-medium transition-colors"
+                      >
+                        Vazgeç
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Satır İçi Kişi Atama & Not Formu */}
+                {isEditing && (
+                  <div className="mt-3 pt-3 border-t border-[#E4E7E3] space-y-2.5 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={assigneeName}
+                        onChange={(e) => setAssigneeName(e.target.value)}
+                        placeholder="Cüzü okuyacak kişinin adı (ör. Fatma Teyze)..."
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-[#f0f5f2] text-[12px] font-manrope outline-none border border-transparent focus:border-[#0F5C4A]"
+                      />
+                      <button
+                        onClick={() => handleAssign(item.juzNumber)}
+                        className="px-3 py-1.5 bg-[#0F5C4A] text-white rounded-lg font-manrope text-[11px] font-bold shrink-0 shadow-xs active:scale-95"
+                      >
+                        Kaydet
+                      </button>
+                      {item.assignedTo && (
+                        <button
+                          onClick={() => handleClearAssign(item.juzNumber)}
+                          className="px-2 py-1.5 bg-red-50 text-red-600 rounded-lg font-manrope text-[11px] font-medium shrink-0 active:scale-95"
+                        >
+                          Bırak
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Atama Formunda İsteğe Bağlı Manevi Tefekkür & Dua Niyeti Alanı */}
+                    <div className="pt-2 border-t border-[#E4E7E3]/60 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold font-manrope text-[#9C7A1E] flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">format_quote</span>
+                          <span>Manevi Not & Dua Niyeti (İsteğe bağlı):</span>
+                        </label>
+                        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                          {PRAYER_INTENTION_PRESETS.slice(0, 3).map((p, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => appendAssigneeNotePreset(p.text)}
+                              className="px-1.5 py-0.5 rounded bg-[#FAF7F0] text-[#9C7A1E] text-[9px] font-manrope font-medium border border-[#9C7A1E]/20"
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        value={assigneeNoteText}
+                        onChange={(e) => setAssigneeNoteText(e.target.value)}
+                        placeholder="Örn: Annemin şifası niyetiyle / Aile saadeti için..."
+                        className="w-full px-3 py-1.5 rounded-lg bg-[#f0f5f2] text-[11.5px] font-manrope outline-none border border-transparent focus:border-[#9C7A1E]"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
             );
-          })}
+          })
+        )}
         </div>
       </section>
+      )}
 
       {/* AİLE BİREYİNE ÖZEL HATIRLATICI MODALI */}
       {selectedAssigneeReminder && (

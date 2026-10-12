@@ -137,19 +137,16 @@ export const YakinCamilerView: React.FC = () => {
             </div>
 
             <div className="flex gap-2 pt-2 border-t border-[#E4E7E3]/60">
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  window.open(
-                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mosque.name)}`,
-                    '_blank'
-                  );
-                }}
-                className="flex-1 py-2 rounded-lg bg-[#0F5C4A] text-white font-manrope text-[12px] font-bold flex items-center justify-center gap-1 shadow-xs active:scale-95"
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mosque.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => sound.playClick()}
+                className="flex-1 py-2 rounded-lg bg-[#0F5C4A] text-white font-manrope text-[12px] font-bold flex items-center justify-center gap-1 shadow-xs active:scale-95 text-center"
               >
                 <span className="material-symbols-outlined text-[16px]">navigation</span>
                 <span>Yol Tarifi Al</span>
-              </button>
+              </a>
             </div>
           </div>
         ))}
